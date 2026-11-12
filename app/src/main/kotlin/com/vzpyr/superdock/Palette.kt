@@ -8,10 +8,8 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.luminance
 
 enum class PaletteKey(val labelRes: Int) {
     Surface(R.string.palette_surface),
@@ -58,6 +56,7 @@ fun ColorScheme.onRole(key: PaletteKey): Color = when (key) {
     PaletteKey.SurfaceContainer,
     PaletteKey.SurfaceContainerHigh,
     PaletteKey.SurfaceContainerHighest -> onSurface
+
     PaletteKey.Primary -> onPrimary
     PaletteKey.PrimaryContainer -> onPrimaryContainer
     PaletteKey.Secondary -> onSecondary
@@ -67,13 +66,26 @@ fun ColorScheme.onRole(key: PaletteKey): Color = when (key) {
     PaletteKey.InverseSurface -> inverseOnSurface
 }
 
-@Composable
-@ReadOnlyComposable
-fun PaletteKey.container(): Color = androidx.compose.material3.MaterialTheme.colorScheme.role(this)
+fun ColorSelection.background(scheme: ColorScheme): Color = when (mode) {
+    ColorMode.MaterialYou -> scheme.role(paletteKey)
+    ColorMode.Custom -> Color(custom.withAlpha(alpha))
+}
 
-@Composable
-@ReadOnlyComposable
-fun PaletteKey.on(): Color = androidx.compose.material3.MaterialTheme.colorScheme.onRole(this)
+fun ColorSelection.foreground(scheme: ColorScheme): Color = when (mode) {
+    ColorMode.MaterialYou -> scheme.onRole(paletteKey)
+    ColorMode.Custom -> custom.contrastColor()
+}
+
+fun ColorSelection.iconColor(scheme: ColorScheme): Color = when (mode) {
+    ColorMode.MaterialYou -> scheme.onRole(paletteKey)
+    ColorMode.Custom -> Color(custom.withAlpha(alpha))
+}
+
+fun Int.withAlpha(alpha: Int): Int =
+    (alpha.coerceIn(0, 255) shl 24) or (this and 0x00FFFFFF)
+
+private fun Int.contrastColor(): Color =
+    if (Color(this).luminance() > 0.5f) Color(0xFF1B1B1F) else Color(0xFFE3E3E3)
 
 fun colorScheme(context: Context, dark: Boolean): ColorScheme {
     val dynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S

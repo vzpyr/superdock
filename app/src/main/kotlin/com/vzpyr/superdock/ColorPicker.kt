@@ -30,18 +30,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-
-fun Int.withAlpha(alpha: Int): Int =
-    (alpha.coerceIn(0, 255) shl 24) or (this and 0x00FFFFFF)
-
-fun Int.alphaChannel(): Int = (this ushr 24) and 0xFF
+import java.util.Locale
 
 @Composable
 fun ColorPicker(
@@ -107,7 +102,7 @@ fun ColorPicker(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
             )
             OutlinedTextField(
-                value = "#%06X".format(0xFFFFFF and (color or 0xFF000000.toInt())),
+                value = String.format(Locale.ROOT, "#%06X", 0xFFFFFF and (color or 0xFF000000.toInt())),
                 onValueChange = { text ->
                     val cleaned = text.removePrefix("#")
                     if (cleaned.length == 6) {

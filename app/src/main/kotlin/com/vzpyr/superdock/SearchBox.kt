@@ -1,15 +1,12 @@
 package com.vzpyr.superdock
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
+import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -27,6 +24,7 @@ import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Row
+import androidx.glance.layout.RowScope
 import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.padding
@@ -43,25 +41,16 @@ class SearchBox : GlanceAppWidget() {
         val config = ConfigStore(context).load()
 
         provideContent {
-            val dynamic = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            val scheme = colorScheme(context, context.isNight())
+            val background = ColorProvider(config.colors.background(scheme))
+            val content = ColorProvider(config.colors.foreground(scheme))
+
             GlanceTheme(
                 colors = ColorProviders(
-                    if (dynamic) dynamicLightColorScheme(context) else lightColorScheme(),
-                    if (dynamic) dynamicDarkColorScheme(context) else darkColorScheme(),
+                    colorScheme(context, false),
+                    colorScheme(context, true),
                 ),
             ) {
-                val scheme = colorScheme(context, context.isNight())
-                val background = when (config.colorMode) {
-                    ColorMode.MaterialYou -> ColorProvider(scheme.role(config.paletteKey))
-                    ColorMode.Custom -> ColorProvider(Color(config.color.withAlpha(config.colorAlpha)))
-                }
-                val content = when (config.colorMode) {
-                    ColorMode.MaterialYou -> ColorProvider(scheme.onRole(config.paletteKey))
-                    ColorMode.Custom -> ColorProvider(
-                        if (Color(config.color).luminance() > 0.5f) Color(0xFF1B1B1F) else Color(0xFFE3E3E3),
-                    )
-                }
-
                 Row(
                     modifier = GlanceModifier
                         .fillMaxWidth()
@@ -81,8 +70,7 @@ class SearchBox : GlanceAppWidget() {
                         Text(
                             text = config.hint,
                             style = TextStyle(
-                                color = config.hintColor?.let { ColorProvider(Color(it)) }
-                                    ?: content,
+                                color = config.hintColor?.let { ColorProvider(Color(it)) } ?: content,
                             ),
                         )
                     }
@@ -93,9 +81,11 @@ class SearchBox : GlanceAppWidget() {
     }
 }
 
-@androidx.compose.runtime.Composable
-private fun androidx.glance.layout.RowScope.SlotView(slot: Slot) {
+@Composable
+private fun RowScope.SlotView(slot: Slot) {
     val context = LocalContext.current
+    val scheme = colorScheme(context, context.isNight())
+
     Row(
         modifier = GlanceModifier
             .size(48.dp)
@@ -103,17 +93,11 @@ private fun androidx.glance.layout.RowScope.SlotView(slot: Slot) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val scheme = colorScheme(context, context.isNight())
         Image(
-            provider = ImageProvider(slot.icon.drawable()),
-            contentDescription = slot.icon.name,
+            provider = ImageProvider(slot.icon.drawable),
+            contentDescription = context.getString(slot.icon.label),
             modifier = GlanceModifier.size(24.dp),
-            colorFilter = androidx.glance.ColorFilter.tint(
-                when (slot.colorMode) {
-                    ColorMode.MaterialYou -> ColorProvider(scheme.role(slot.paletteKey))
-                    ColorMode.Custom -> ColorProvider(Color(slot.color.withAlpha(slot.colorAlpha)))
-                },
-            ),
+            colorFilter = ColorFilter.tint(ColorProvider(slot.colors.iconColor(scheme))),
         )
     }
 }
@@ -126,7 +110,7 @@ private fun Slot.action(context: Context): Action {
 
 private fun Context.launchIntent(): Intent =
     packageManager.getLaunchIntentForPackage(packageName)
-        ?: Intent().setComponent(android.content.ComponentName(this, MainActivity::class.java))
+        ?: Intent().setComponent(ComponentName(this, MainActivity::class.java))
 
 class SearchBoxReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = SearchBox()

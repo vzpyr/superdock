@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.provider.Settings
 
 data class Engine(
     val packageName: String,
@@ -24,11 +23,11 @@ fun findEngines(context: Context): List<Engine> {
 
     return (webSearch + context.packageName)
         .distinct()
-        .mapNotNull { pkg ->
+        .mapNotNull { packageName ->
             val label = runCatching {
-                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
             }.getOrNull() ?: return@mapNotNull null
-            Engine(pkg, label)
+            Engine(packageName, label)
         }
         .sortedBy { it.label.lowercase() }
 }
@@ -36,31 +35,23 @@ fun findEngines(context: Context): List<Engine> {
 fun findTargets(context: Context): List<Target> {
     val pm = context.packageManager
 
-    val activities = pm.getInstalledApplications(PackageManager.GET_META_DATA).flatMap { app ->
-        runCatching {
-            pm.getPackageInfo(app.packageName, PackageManager.GET_ACTIVITIES)
-                .activities
-                .orEmpty()
-                .toList()
-        }.getOrDefault(emptyList())
-    }
-
-    return activities
-        .distinctBy { "${it.packageName}/${it.name}" }
-        .mapNotNull { activity ->
-            if (!activity.exported) return@mapNotNull null
+    return pm.getInstalledPackages(PackageManager.GET_ACTIVITIES)
+        .flatMap { packageInfo ->
             val appLabel = runCatching {
-                pm.getApplicationLabel(pm.getApplicationInfo(activity.packageName, 0)).toString()
-            }.getOrDefault(activity.packageName)
-            val name = activity.name.substringAfterLast('.')
-            Target(
-                label = appLabel,
-                detail = if (name == appLabel) null else name,
-                component = ComponentName(activity.packageName, activity.name),
-            )
+                packageInfo.applicationInfo?.let { pm.getApplicationLabel(it).toString() }
+            }.getOrNull() ?: packageInfo.packageName
+
+            packageInfo.activities.orEmpty()
+                .filter { it.exported }
+                .map { activity ->
+                    val name = activity.name.substringAfterLast('.')
+                    Target(
+                        label = appLabel,
+                        detail = name.takeUnless { it == appLabel || it.isEmpty() },
+                        component = ComponentName(activity.packageName, activity.name),
+                    )
+                }
         }
+        .distinctBy { it.component.flattenToString() }
         .sortedWith(compareBy({ it.label.lowercase() }, { it.detail.orEmpty() }))
 }
-
-fun currentEngine(context: Context): String? =
-    Settings.Secure.getString(context.contentResolver, ENGINE_KEY)?.takeIf { it.isNotBlank() }

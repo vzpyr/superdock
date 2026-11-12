@@ -1,11 +1,9 @@
 package com.vzpyr.superdock
 
 import android.content.Context
-import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -14,11 +12,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import moe.shizuku.server.IShizukuService
 import rikka.shizuku.Shizuku
+import java.io.FileInputStream
 
-const val ENGINE_KEY = "selected_search_engine"
-const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
+private const val ENGINE_KEY = "selected_search_engine"
+private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
-val LAUNCHER_PACKAGES = listOf(
+private val LAUNCHER_PACKAGES = listOf(
     "com.google.android.apps.nexuslauncher",
     "com.android.launcher3",
 )
@@ -29,13 +28,6 @@ sealed interface ShizukuState {
     data object PermissionRequired : ShizukuState
     data object Ready : ShizukuState
 }
-
-private fun service(): IShizukuService? = runCatching {
-    IShizukuService.Stub.asInterface(Shizuku.getBinder())
-}.getOrNull()
-
-fun hasPermission(): Boolean =
-    runCatching { service()?.checkSelfPermission() == true }.getOrDefault(false)
 
 fun readEngine(context: Context): String? =
     Settings.Secure.getString(context.contentResolver, ENGINE_KEY)?.takeIf { it.isNotBlank() }
@@ -51,17 +43,8 @@ fun writeEngine(context: Context, packageName: String?): Boolean {
 }
 
 fun restartLauncher() {
-    LAUNCHER_PACKAGES.forEach { pkg -> runShell("am", "force-stop", pkg) }
+    LAUNCHER_PACKAGES.forEach { runShell("am", "force-stop", it) }
 }
-
-private fun runShell(vararg args: String): String = runCatching {
-    val process = service()?.newProcess(arrayOf(*args), null, null) ?: return ""
-    val output = java.io.FileInputStream(process.inputStream.fileDescriptor)
-        .bufferedReader()
-        .readText()
-    process.waitFor()
-    output
-}.getOrDefault("")
 
 fun requestShizukuPermission() {
     if (Shizuku.pingBinder() && !hasPermission()) {
@@ -69,17 +52,12 @@ fun requestShizukuPermission() {
     }
 }
 
-fun isInstalled(context: Context): Boolean = runCatching {
-    context.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0)
-}.isSuccess
-
 @Composable
 fun rememberShizukuState(): Pair<ShizukuState, () -> Unit> {
     val context = LocalContext.current
     var state by remember { mutableStateOf(currentState(context)) }
-    var tick by remember { mutableIntStateOf(0) }
-
     val sync = { state = currentState(context) }
+
     val received = remember { Shizuku.OnBinderReceivedListener { sync() } }
     val dead = remember { Shizuku.OnBinderDeadListener { sync() } }
     val granted = remember { Shizuku.OnRequestPermissionResultListener { _, _ -> sync() } }
@@ -97,18 +75,7 @@ fun rememberShizukuState(): Pair<ShizukuState, () -> Unit> {
     }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { sync() }
 
-    tick
-    return state to {
-        tick++
-        sync()
-    }
-}
-
-private fun currentState(context: Context): ShizukuState = when {
-    !isInstalled(context) -> ShizukuState.NotInstalled
-    !Shizuku.pingBinder() -> ShizukuState.NotRunning
-    !hasPermission() -> ShizukuState.PermissionRequired
-    else -> ShizukuState.Ready
+    return state to sync
 }
 
 val ShizukuState.labelRes: Int
@@ -119,5 +86,37 @@ val ShizukuState.labelRes: Int
         ShizukuState.Ready -> R.string.shizuku_connected
     }
 
-@Suppress("unused")
-private val unusedPermission = PackageManager.PERMISSION_GRANTED
+val ShizukuState.noticeRes: Int?
+    get() = when (this) {
+        ShizukuState.NotInstalled -> R.string.notice_shizuku_not_installed
+        ShizukuState.NotRunning -> R.string.notice_shizuku_not_running
+        ShizukuState.PermissionRequired -> R.string.notice_shizuku_permission
+        ShizukuState.Ready -> null
+    }
+
+private fun service(): IShizukuService? = runCatching {
+    IShizukuService.Stub.asInterface(Shizuku.getBinder())
+}.getOrNull()
+
+private fun hasPermission(): Boolean =
+    runCatching { service()?.checkSelfPermission() == true }.getOrDefault(false)
+
+private fun isInstalled(context: Context): Boolean = runCatching {
+    context.packageManager.getPackageInfo(SHIZUKU_PACKAGE, 0)
+}.isSuccess
+
+private fun currentState(context: Context): ShizukuState = when {
+    !isInstalled(context) -> ShizukuState.NotInstalled
+    !Shizuku.pingBinder() -> ShizukuState.NotRunning
+    !hasPermission() -> ShizukuState.PermissionRequired
+    else -> ShizukuState.Ready
+}
+
+private fun runShell(vararg args: String): String = runCatching {
+    val process = service()?.newProcess(arrayOf(*args), null, null) ?: return ""
+    val output = FileInputStream(process.inputStream.fileDescriptor)
+        .bufferedReader()
+        .readText()
+    process.waitFor()
+    output
+}.getOrDefault("")
