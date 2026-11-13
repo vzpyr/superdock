@@ -13,12 +13,13 @@
     </queries>
 
     <application
-        android:label="@string/app_name"
-        android:theme="@style/Theme.Superdock">
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name">
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/LaunchTheme">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
