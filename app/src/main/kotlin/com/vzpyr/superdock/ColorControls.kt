@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.dp
 fun ColorControls(
     colors: ColorSelection,
     onChange: (ColorSelection) -> Unit,
+    inlinePicker: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -32,6 +33,7 @@ fun ColorControls(
                 alpha = colors.alpha,
                 onColorChange = { onChange(colors.copy(custom = it)) },
                 onAlphaChange = { onChange(colors.copy(alpha = it)) },
+                inline = inlinePicker,
             )
         }
     }

@@ -18,23 +18,23 @@ enum class ColorMode { MaterialYou, Custom }
 data class ColorSelection(
     val mode: ColorMode = ColorMode.MaterialYou,
     val paletteKey: PaletteKey = PaletteKey.SurfaceContainerHigh,
-    val custom: Int = 0xFF1B1B1F.toInt(),
+    val custom: Int = 0xFFFFFFFF.toInt(),
     val alpha: Int = 255,
 )
+
+val HintColor = ColorSelection(paletteKey = PaletteKey.OnSurfaceVariant)
 
 data class Slot(
     val icon: IconKey = IconKey.Search,
     val target: String? = null,
-    val colors: ColorSelection = ColorSelection(
-        paletteKey = PaletteKey.Surface,
-        custom = 0xFFFFFFFF.toInt(),
-    ),
+    val colors: ColorSelection = ColorSelection(paletteKey = PaletteKey.OnSurface),
 )
 
 data class Config(
     val colors: ColorSelection = ColorSelection(),
     val hint: String = "",
-    val hintColor: Int? = null,
+    val hintColor: ColorSelection = HintColor,
+    val uniformPaddings: Boolean = true,
     val left: List<Slot> = emptyList(),
     val right: List<Slot> = emptyList(),
     val center: Slot = Slot(),

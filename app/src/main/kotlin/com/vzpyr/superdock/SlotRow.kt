@@ -3,110 +3,84 @@ package com.vzpyr.superdock
 import android.content.ComponentName
 import android.content.Context
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Row
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 
+data class TargetName(val app: String, val detail: String?)
+
 @Composable
-fun SlotRow(
-    slot: Slot,
-    showArrows: Boolean,
-    onBind: () -> Unit,
-    onRemove: (() -> Unit)?,
-    onChange: (Slot) -> Unit,
-    onMoveUp: (() -> Unit)?,
-    onMoveDown: (() -> Unit)?,
-) {
+fun SlotRow(slot: Slot, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
-    var editing by remember { mutableStateOf(false) }
+    val name = slot.target?.toComponentName()?.let { targetName(context, it) }
+    val detail = name?.detail
 
     ListItem(
         headlineContent = {
-            Text(
-                slot.target?.toComponentName()?.let { componentLabel(context, it) }
-                    ?: stringResource(R.string.slot_not_bound),
+            Text(name?.app ?: stringResource(R.string.slot_not_bound))
+        },
+        supportingContent = if (detail != null) {
+            { Text(detail) }
+        } else {
+            null
+        },
+        leadingContent = {
+            Icon(
+                painter = painterResource(slot.icon.drawable),
+                contentDescription = null,
+                tint = slot.colors.color(scheme),
             )
         },
-        supportingContent = { Text(stringResource(slot.icon.label)) },
-        leadingContent = {
-            IconTooltip(stringResource(R.string.action_edit_appearance)) {
-                IconButton(onClick = { editing = true }) {
-                    Icon(
-                        painter = painterResource(slot.icon.drawable),
-                        contentDescription = stringResource(R.string.action_edit_appearance),
-                        tint = slot.colors.iconColor(scheme),
-                    )
-                }
-            }
-        },
-        trailingContent = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (showArrows) {
-                    onMoveUp?.let {
-                        IconAction(
-                            icon = Icons.Default.KeyboardArrowUp,
-                            label = stringResource(R.string.action_move_up),
-                            onClick = it,
-                        )
-                    }
-                    onMoveDown?.let {
-                        IconAction(
-                            icon = Icons.Default.KeyboardArrowDown,
-                            label = stringResource(R.string.action_move_down),
-                            onClick = it,
-                        )
-                    }
-                }
-                onRemove?.let {
-                    IconAction(
-                        icon = Icons.Default.Close,
-                        label = stringResource(R.string.action_remove),
-                        onClick = it,
-                    )
-                }
-            }
-        },
-        modifier = Modifier.clickable(onClick = onBind),
+        trailingContent = { Chevron() },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier.clickable(onClick = onClick),
     )
-
-    if (editing) {
-        SlotAppearanceSheet(
-            slot = slot,
-            onDismiss = { editing = false },
-            onChange = onChange,
-        )
-    }
 }
 
 @Composable
-private fun componentLabel(context: Context, component: ComponentName): String {
-    val (app, activity) = runCatching {
-        val pm = context.packageManager
-        val label = pm.getApplicationLabel(pm.getApplicationInfo(component.packageName, 0)).toString()
-        label to component.className.substringAfterLast('.')
-    }.getOrNull() ?: return component.packageName
+fun ActionRow(target: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.label_action)) },
+        supportingContent = {
+            Text(target ?: stringResource(R.string.slot_not_bound))
+        },
+        trailingContent = { Chevron() },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+        modifier = modifier.clickable(onClick = onClick),
+    )
+}
 
-    return if (activity == app || activity.isEmpty()) {
-        app
-    } else {
-        stringResource(R.string.component_label, app, activity)
-    }
+@Composable
+private fun Chevron() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+        contentDescription = null,
+    )
+}
+
+fun targetName(context: Context, component: ComponentName): TargetName {
+    val app = runCatching {
+        val pm = context.packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(component.packageName, 0)).toString()
+    }.getOrNull() ?: return TargetName(component.packageName, null)
+
+    val activity = component.className.substringAfterLast('.')
+    return TargetName(app, activity.takeIf { it.isNotEmpty() && it != app })
+}
+
+fun componentLabel(context: Context, component: ComponentName): String {
+    val name = targetName(context, component)
+    return name.detail?.let { context.getString(R.string.component_label, name.app, it) }
+        ?: name.app
 }

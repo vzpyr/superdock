@@ -1,7 +1,9 @@
 package com.vzpyr.superdock
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -16,9 +18,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -29,7 +35,9 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -44,10 +52,12 @@ fun SettingsScreen(store: ConfigStore) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val (shizuku, refreshShizuku) = rememberShizukuState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var config by remember { mutableStateOf(store.load()) }
     var engine by remember { mutableStateOf(readEngine(context)) }
     var target by remember { mutableStateOf<SlotTarget?>(null) }
+    var editing by remember { mutableStateOf<SlotTarget?>(null) }
     val engines by produceState(initialValue = emptyList<Engine>(), key1 = context) {
         value = withContext(Dispatchers.IO) { findEngines(context) }
     }
@@ -70,21 +80,75 @@ fun SettingsScreen(store: ConfigStore) {
         )
     }
 
+    editing?.let { pending ->
+        val slots = config.slots(pending.side)
+        slots.getOrNull(pending.index)?.let { slot ->
+            SlotSheet(
+                slot = slot,
+                canMoveUp = pending.index > 0,
+                canMoveDown = pending.index < slots.lastIndex,
+                onDismiss = { editing = null },
+                onChange = { next ->
+                    persist(config.updateSlot(pending.side, pending.index) { next })
+                },
+                onBind = {
+                    editing = null
+                    target = pending
+                },
+                onMoveUp = {
+                    persist(
+                        config.withSlots(
+                            pending.side,
+                            slots.swapped(pending.index, pending.index - 1),
+                        ),
+                    )
+                    editing = null
+                },
+                onMoveDown = {
+                    persist(
+                        config.withSlots(
+                            pending.side,
+                            slots.swapped(pending.index, pending.index + 1),
+                        ),
+                    )
+                    editing = null
+                },
+                onRemove = {
+                    persist(config.withSlots(pending.side, slots.without(pending.index)))
+                    editing = null
+                },
+            )
+        }
+    }
+
+    fun notify(message: String) {
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
                     IconAction(
                         icon = Icons.Default.Refresh,
-                        label = stringResource(R.string.action_refresh_status),
-                        onClick = refreshShizuku,
-                    )
-                    IconAction(
-                        icon = Icons.Default.Warning,
-                        label = stringResource(R.string.action_restart_launcher),
-                        onClick = { scope.launch(Dispatchers.IO) { restartLauncher() } },
-                        enabled = ready,
+                        label = stringResource(R.string.action_refresh_widget),
+                        onClick = {
+                            scope.launch {
+                                val refreshed = withContext(Dispatchers.IO) {
+                                    refreshEngine(context)
+                                }
+                                if (refreshed) {
+                                    SearchBox().updateAll(context)
+                                    notify(context.getString(R.string.status_widget_refreshed))
+                                }
+                            }
+                        },
+                        enabled = ready && engine == context.packageName,
                     )
                 },
             )
@@ -97,7 +161,10 @@ fun SettingsScreen(store: ConfigStore) {
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 32.dp),
         ) {
-            ShizukuStatusRow(shizuku)
+            ShizukuStatusRow(shizuku) {
+                refreshShizuku()
+                notify(context.getString(R.string.status_shizuku_refreshed))
+            }
             SectionDivider()
             SearchEngineSection(
                 engines = engines,
@@ -120,14 +187,15 @@ fun SettingsScreen(store: ConfigStore) {
             ActionsSection(
                 config = config,
                 onChange = ::persist,
-                onEditTarget = { target = it },
+                onEditSlot = { editing = it },
+                onBind = { target = it },
             )
         }
     }
 }
 
 @Composable
-private fun ShizukuStatusRow(state: ShizukuState) {
+private fun ShizukuStatusRow(state: ShizukuState, onRefresh: () -> Unit) {
     val ready = state is ShizukuState.Ready
 
     ListItem(
@@ -145,12 +213,21 @@ private fun ShizukuStatusRow(state: ShizukuState) {
             )
         },
         trailingContent = {
-            if (state is ShizukuState.PermissionRequired) {
-                TextButton(onClick = { requestShizukuPermission() }) {
-                    Text(stringResource(R.string.action_grant))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (state is ShizukuState.PermissionRequired) {
+                    TextButton(onClick = { requestShizukuPermission() }) {
+                        Text(stringResource(R.string.action_grant))
+                    }
+                }
+                TextButton(onClick = onRefresh) {
+                    Text(stringResource(R.string.action_refresh))
                 }
             }
         },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
 
@@ -182,14 +259,17 @@ private fun BackgroundSection(colors: ColorSelection, onChange: (ColorSelection)
 private fun ActionsSection(
     config: Config,
     onChange: (Config) -> Unit,
-    onEditTarget: (SlotTarget) -> Unit,
+    onEditSlot: (SlotTarget) -> Unit,
+    onBind: (SlotTarget) -> Unit,
 ) {
+    val context = LocalContext.current
+
     SectionHeader(stringResource(R.string.section_actions))
 
-    SubHeader(stringResource(R.string.side_left))
-    SlotList(config.left, Side.Left, config, onChange, onEditTarget)
+    GroupHeader(stringResource(R.string.side_left))
+    SlotList(config.left, Side.Left, config, onChange, onEditSlot)
 
-    SubHeader(stringResource(R.string.side_center))
+    GroupHeader(stringResource(R.string.side_center))
     OutlinedTextField(
         value = config.hint,
         onValueChange = { onChange(config.copy(hint = it)) },
@@ -200,18 +280,31 @@ private fun ActionsSection(
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
     )
-    SlotRow(
-        slot = config.center,
-        showArrows = false,
-        onBind = { onEditTarget(SlotTarget(Side.Center, 0)) },
-        onRemove = null,
-        onChange = { onChange(config.copy(center = it)) },
-        onMoveUp = null,
-        onMoveDown = null,
+    FieldLabel(stringResource(R.string.label_hint_color))
+    ColorControls(
+        colors = config.hintColor,
+        onChange = { onChange(config.copy(hintColor = it)) },
+    )
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.label_uniform_paddings)) },
+        trailingContent = {
+            Switch(
+                checked = config.uniformPaddings,
+                onCheckedChange = { onChange(config.copy(uniformPaddings = it)) },
+            )
+        },
+        modifier = Modifier.clickable {
+            onChange(config.copy(uniformPaddings = !config.uniformPaddings))
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+    ActionRow(
+        target = config.center.target?.toComponentName()?.let { componentLabel(context, it) },
+        onClick = { onBind(SlotTarget(Side.Center, 0)) },
     )
 
-    SubHeader(stringResource(R.string.side_right))
-    SlotList(config.right, Side.Right, config, onChange, onEditTarget)
+    GroupHeader(stringResource(R.string.side_right))
+    SlotList(config.right, Side.Right, config, onChange, onEditSlot)
 }
 
 @Composable
@@ -220,25 +313,12 @@ private fun SlotList(
     side: Side,
     config: Config,
     onChange: (Config) -> Unit,
-    onEditTarget: (SlotTarget) -> Unit,
+    onEditSlot: (SlotTarget) -> Unit,
 ) {
     slots.forEachIndexed { index, slot ->
         SlotRow(
             slot = slot,
-            showArrows = slots.size > 1,
-            onBind = { onEditTarget(SlotTarget(side, index)) },
-            onRemove = { onChange(config.withSlots(side, slots.without(index))) },
-            onChange = { next -> onChange(config.updateSlot(side, index) { next }) },
-            onMoveUp = if (index > 0) {
-                { onChange(config.withSlots(side, slots.swapped(index, index - 1))) }
-            } else {
-                null
-            },
-            onMoveDown = if (index < slots.lastIndex) {
-                { onChange(config.withSlots(side, slots.swapped(index, index + 1))) }
-            } else {
-                null
-            },
+            onClick = { onEditSlot(SlotTarget(side, index)) },
         )
     }
     if (slots.size < 2) {
@@ -252,6 +332,7 @@ private fun AddSlotRow(onClick: () -> Unit) {
         headlineContent = { Text(stringResource(R.string.action_add_button)) },
         leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
         modifier = Modifier.clickable(onClick = onClick),
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
     )
 }
 
@@ -259,19 +340,29 @@ private fun AddSlotRow(onClick: () -> Unit) {
 private fun SectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.titleMedium,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
     )
 }
 
 @Composable
-private fun SubHeader(title: String) {
+private fun GroupHeader(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp),
+    )
+}
+
+@Composable
+private fun FieldLabel(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
     )
 }
 

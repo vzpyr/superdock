@@ -5,12 +5,13 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 class ConfigStore(context: Context) {
-    private val prefs = context.applicationContext
-        .getSharedPreferences("searchbox", Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences("searchbox", Context.MODE_PRIVATE)
+    private val defaults = Config(hint = appContext.getString(R.string.placeholder_search))
 
     fun load(): Config {
-        val raw = prefs.getString(KEY_CONFIG, null) ?: return Config()
-        return runCatching { JSONObject(raw).toConfig() }.getOrDefault(Config())
+        val raw = prefs.getString(KEY_CONFIG, null) ?: return defaults
+        return runCatching { JSONObject(raw).toConfig() }.getOrDefault(defaults)
     }
 
     fun save(config: Config) {
@@ -25,7 +26,8 @@ class ConfigStore(context: Context) {
 private fun Config.toJson(): JSONObject = JSONObject()
     .put("colors", colors.toJson())
     .put("hint", hint)
-    .putOpt("hintColor", hintColor)
+    .put("hintColor", hintColor.toJson())
+    .put("uniformPaddings", uniformPaddings)
     .put("left", left.toJson())
     .put("right", right.toJson())
     .put("center", center.toJson())
@@ -48,7 +50,10 @@ private fun ColorSelection.toJson(): JSONObject = JSONObject()
 private fun JSONObject.toConfig(): Config = Config(
     colors = optJSONObject("colors")?.toColorSelection() ?: ColorSelection(),
     hint = optString("hint"),
-    hintColor = optInt("hintColor", 0).takeIf { it != 0 },
+    hintColor = optJSONObject("hintColor")
+        ?.toColorSelection(PaletteKey.OnSurfaceVariant)
+        ?: HintColor,
+    uniformPaddings = optBoolean("uniformPaddings", true),
     left = optJSONArray("left").toSlots(),
     right = optJSONArray("right").toSlots(),
     center = optJSONObject("center")?.toSlot() ?: Slot(),
@@ -64,12 +69,15 @@ private fun JSONArray?.toSlots(): List<Slot> =
 private fun JSONObject.toSlot(): Slot = Slot(
     icon = enum("icon", IconKey.Search),
     target = optString("target").takeIf { it.isNotEmpty() },
-    colors = optJSONObject("colors")?.toColorSelection() ?: Slot().colors,
+    colors = optJSONObject("colors")?.toColorSelection(PaletteKey.OnSurface)
+        ?: Slot().colors,
 )
 
-private fun JSONObject.toColorSelection(): ColorSelection = ColorSelection(
+private fun JSONObject.toColorSelection(
+    fallback: PaletteKey = PaletteKey.SurfaceContainerHigh,
+): ColorSelection = ColorSelection(
     mode = enum("mode", ColorMode.MaterialYou),
-    paletteKey = enum("palette", PaletteKey.SurfaceContainerHigh),
+    paletteKey = enum("palette", fallback),
     custom = optInt("custom", ColorSelection().custom),
     alpha = optInt("alpha", ColorSelection().alpha),
 )

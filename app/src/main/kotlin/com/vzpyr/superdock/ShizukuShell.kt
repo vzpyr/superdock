@@ -17,11 +17,6 @@ import java.io.FileInputStream
 private const val ENGINE_KEY = "selected_search_engine"
 private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
-private val LAUNCHER_PACKAGES = listOf(
-    "com.google.android.apps.nexuslauncher",
-    "com.android.launcher3",
-)
-
 sealed interface ShizukuState {
     data object NotInstalled : ShizukuState
     data object NotRunning : ShizukuState
@@ -42,8 +37,11 @@ fun writeEngine(context: Context, packageName: String?): Boolean {
     return readEngine(context) == packageName
 }
 
-fun restartLauncher() {
-    LAUNCHER_PACKAGES.forEach { runShell("am", "force-stop", it) }
+fun refreshEngine(context: Context): Boolean {
+    val packageName = context.packageName
+    if (readEngine(context) != packageName) return false
+    writeEngine(context, null)
+    return writeEngine(context, packageName)
 }
 
 fun requestShizukuPermission() {

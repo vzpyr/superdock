@@ -8,14 +8,17 @@
     <string name="shizuku_permission_required">Permission required</string>
     <string name="shizuku_connected">Connected</string>
 
-    <string name="action_refresh_status">Refresh status</string>
-    <string name="action_restart_launcher">Restart launcher</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_refresh_widget">Refresh widget</string>
     <string name="action_grant">Grant</string>
     <string name="action_move_up">Move up</string>
     <string name="action_move_down">Move down</string>
     <string name="action_remove">Remove</string>
-    <string name="action_edit_appearance">Edit appearance</string>
     <string name="action_add_button">Add button</string>
+    <string name="action_back">Back</string>
+
+    <string name="label_action">Action</string>
+    <string name="sheet_button">Button</string>
 
     <string name="section_search_engine">Search engine</string>
     <string name="section_background">Background</string>
@@ -25,27 +28,65 @@
     <string name="notice_shizuku_not_running">Start Shizuku to change the engine</string>
     <string name="notice_shizuku_permission">Grant Shizuku permission to change the engine</string>
 
+    <string name="status_shizuku_refreshed">Shizuku status refreshed</string>
+    <string name="status_widget_refreshed">Widget refreshed</string>
+
     <string name="color_material_you">Material You</string>
     <string name="color_custom">Custom</string>
     <string name="palette_color">Palette color</string>
 
+    <string name="palette_primary">Primary</string>
+    <string name="palette_on_primary">On primary</string>
+    <string name="palette_primary_container">Primary container</string>
+    <string name="palette_on_primary_container">On primary container</string>
+    <string name="palette_inverse_primary">Inverse primary</string>
+    <string name="palette_secondary">Secondary</string>
+    <string name="palette_on_secondary">On secondary</string>
+    <string name="palette_secondary_container">Secondary container</string>
+    <string name="palette_on_secondary_container">On secondary container</string>
+    <string name="palette_tertiary">Tertiary</string>
+    <string name="palette_on_tertiary">On tertiary</string>
+    <string name="palette_tertiary_container">Tertiary container</string>
+    <string name="palette_on_tertiary_container">On tertiary container</string>
+    <string name="palette_background">Background</string>
+    <string name="palette_on_background">On background</string>
     <string name="palette_surface">Surface</string>
-    <string name="palette_surface_dim">Surface dim</string>
+    <string name="palette_on_surface">On surface</string>
+    <string name="palette_surface_variant">Surface variant</string>
+    <string name="palette_on_surface_variant">On surface variant</string>
+    <string name="palette_surface_tint">Surface tint</string>
+    <string name="palette_inverse_surface">Inverse surface</string>
+    <string name="palette_inverse_on_surface">Inverse on surface</string>
+    <string name="palette_error">Error</string>
+    <string name="palette_on_error">On error</string>
+    <string name="palette_error_container">Error container</string>
+    <string name="palette_on_error_container">On error container</string>
+    <string name="palette_outline">Outline</string>
+    <string name="palette_outline_variant">Outline variant</string>
     <string name="palette_surface_bright">Surface bright</string>
-    <string name="palette_surface_container_lowest">Container lowest</string>
-    <string name="palette_surface_container_low">Container low</string>
+    <string name="palette_surface_dim">Surface dim</string>
     <string name="palette_surface_container">Container</string>
     <string name="palette_surface_container_high">Container high</string>
     <string name="palette_surface_container_highest">Container highest</string>
-    <string name="palette_primary">Primary</string>
-    <string name="palette_primary_container">Primary container</string>
-    <string name="palette_secondary">Secondary</string>
-    <string name="palette_secondary_container">Secondary container</string>
-    <string name="palette_tertiary">Tertiary</string>
-    <string name="palette_tertiary_container">Tertiary container</string>
-    <string name="palette_inverse_surface">Inverse surface</string>
+    <string name="palette_surface_container_low">Container low</string>
+    <string name="palette_surface_container_lowest">Container lowest</string>
+    <string name="palette_primary_fixed">Primary fixed</string>
+    <string name="palette_primary_fixed_dim">Primary fixed dim</string>
+    <string name="palette_on_primary_fixed">On primary fixed</string>
+    <string name="palette_on_primary_fixed_variant">On primary fixed variant</string>
+    <string name="palette_secondary_fixed">Secondary fixed</string>
+    <string name="palette_secondary_fixed_dim">Secondary fixed dim</string>
+    <string name="palette_on_secondary_fixed">On secondary fixed</string>
+    <string name="palette_on_secondary_fixed_variant">On secondary fixed variant</string>
+    <string name="palette_tertiary_fixed">Tertiary fixed</string>
+    <string name="palette_tertiary_fixed_dim">Tertiary fixed dim</string>
+    <string name="palette_on_tertiary_fixed">On tertiary fixed</string>
+    <string name="palette_on_tertiary_fixed_variant">On tertiary fixed variant</string>
 
     <string name="label_hint">Hint</string>
+    <string name="label_hint_color">Hint color</string>
+    <string name="action_edit_color">Edit color</string>
+    <string name="label_uniform_paddings">Uniform paddings</string>
     <string name="label_hex">Hex</string>
     <string name="placeholder_search">Search</string>
 
@@ -61,6 +102,11 @@
     <string name="engine_not_set">Not set</string>
     <string name="color_opacity">Opacity %1$d %%</string>
     <string name="component_label">%1$s · %2$s</string>
+
+    <plurals name="target_activities">
+        <item quantity="one">%d activity</item>
+        <item quantity="other">%d activities</item>
+    </plurals>
 
     <string name="icon_search">Search</string>
     <string name="icon_mic">Microphone</string>

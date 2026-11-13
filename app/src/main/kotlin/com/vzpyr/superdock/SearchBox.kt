@@ -4,7 +4,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.glance.ColorFilter
 import androidx.glance.GlanceId
@@ -42,8 +41,8 @@ class SearchBox : GlanceAppWidget() {
 
         provideContent {
             val scheme = colorScheme(context, context.isNight())
-            val background = ColorProvider(config.colors.background(scheme))
-            val content = ColorProvider(config.colors.foreground(scheme))
+            val background = ColorProvider(config.colors.color(scheme))
+            val hint = ColorProvider(config.hintColor.color(scheme))
 
             GlanceTheme(
                 colors = ColorProviders(
@@ -69,9 +68,12 @@ class SearchBox : GlanceAppWidget() {
                     ) {
                         Text(
                             text = config.hint,
-                            style = TextStyle(
-                                color = config.hintColor?.let { ColorProvider(Color(it)) } ?: content,
-                            ),
+                            modifier = if (config.uniformPaddings) {
+                                GlanceModifier.padding(start = 8.dp)
+                            } else {
+                                GlanceModifier
+                            },
+                            style = TextStyle(color = hint),
                         )
                     }
                     config.right.forEach { SlotView(it) }
@@ -97,7 +99,7 @@ private fun RowScope.SlotView(slot: Slot) {
             provider = ImageProvider(slot.icon.drawable),
             contentDescription = context.getString(slot.icon.label),
             modifier = GlanceModifier.size(24.dp),
-            colorFilter = ColorFilter.tint(ColorProvider(slot.colors.iconColor(scheme))),
+            colorFilter = ColorFilter.tint(ColorProvider(slot.colors.color(scheme))),
         )
     }
 }
